@@ -1,50 +1,42 @@
 use ddc_hi::{Ddc, Display};
-use std::sync::mpsc;
-use tray_item::{IconSource, TrayItem};
-
-enum Message {
-    Brightness { val: u16 },
-    Quit,
-}
+use gtk::prelude::*;
+use libappindicator;
+use std::path::Path;
 
 fn main() {
-    // Tray
-    let mut tray =
-        TrayItem::new("DDC control tray", IconSource::Resource("video-display")).unwrap();
+    gtk::init().unwrap();
 
-    // Channel
-    let (tx, rx) = mpsc::sync_channel::<Message>(2);
+    // Tray
+    let mut indicator = libappindicator::AppIndicator::new("DDC Control Tray", "");
+    indicator.set_status(libappindicator::AppIndicatorStatus::Active);
+
+    let icon_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("res");
+    indicator.set_icon_theme_path(icon_path.to_str().unwrap());
+    indicator.set_icon_full("icon", "icon");
+
+    // Build tray menu
+    let mut m = gtk::Menu::new();
 
     // Brightness shortcuts
     for bri in (0..101).step_by(10) {
-        let brigh_tx = tx.clone();
-
-        tray.add_menu_item(format!("{}%", bri).as_str(), move || {
-            brigh_tx.send(Message::Brightness { val: bri }).unwrap();
-        })
-        .unwrap();
+        let mi = gtk::CheckMenuItem::with_label(format!("{}%", bri).as_str());
+        mi.connect_activate(move |_| {
+            set_brightness(bri);
+        });
+        m.append(&mi);
     }
 
     // Quit
-    let quit_tx = tx.clone();
-    tray.add_menu_item("Quit", move || {
-        quit_tx.send(Message::Quit).unwrap();
-    })
-    .unwrap();
+    let mi = gtk::CheckMenuItem::with_label("Quit");
+    mi.connect_activate(|_| {
+        gtk::main_quit();
+    });
+    m.append(&mi);
 
-    loop {
-        match rx.recv() {
-            Ok(Message::Quit) => {
-                println!("Quit");
-                break;
-            }
-            Ok(Message::Brightness { val }) => {
-                println!("Brightness to {:?}", val);
-                set_brightness(val);
-            }
-            _ => {}
-        }
-    }
+    indicator.set_menu(&mut m);
+    m.show_all();
+
+    gtk::main();
 }
 
 fn set_brightness(brighness: u16) {

@@ -7,5 +7,7 @@ edition = "2021"
 
 [dependencies]
 ddc-hi = "0.4.1"
-png = "0.16.8"
-tray-item = { version = "0.8.0", features = [ "ksni" ] }
+gtk = "0.18.1"
+libappindicator = "0.9.0"
+# png = "0.16.8"
+# tray-item = { version = "0.8.0", features = [ "ksni" ] }
