@@ -9,5 +9,6 @@ edition = "2021"
 ddc-hi = "0.4.1"
 gtk = "0.18.1"
 libappindicator = "0.9.0"
+tempdir = "0.3.7"
 # png = "0.16.8"
 # tray-item = { version = "0.8.0", features = [ "ksni" ] }

@@ -1,5 +1,4 @@
-{ pkgs ? import <nixpkgs> {} }:
-
+{pkgs ? import <nixpkgs> {}}:
 pkgs.mkShell {
   buildInputs = [
     pkgs.gtk3
@@ -17,7 +16,7 @@ pkgs.mkShell {
 
   nativeBuildInputs = [
     pkgs.pkg-config
-    pkgs.cargo
-    pkgs.rustc
+    # pkgs.cargo
+    # pkgs.rustc
   ];
 }

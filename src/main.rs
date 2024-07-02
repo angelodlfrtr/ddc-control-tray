@@ -1,17 +1,26 @@
 use ddc_hi::{Ddc, Display};
 use gtk::prelude::*;
 use libappindicator;
-use std::path::Path;
+use std::fs::File;
+use std::io::Write;
+use tempdir::TempDir;
 
 fn main() {
     gtk::init().unwrap();
 
+    // Prepare icon
+    let icon_bytes = include_bytes!("icon.png");
+    let temp_dir = TempDir::new("ddc_control_tray").unwrap();
+    let icon_path = temp_dir.path().join("icon.png");
+    let mut icon_file = File::create(icon_path).unwrap();
+    icon_file.write_all(icon_bytes).unwrap();
+    icon_file.sync_all().unwrap();
+    // temp_dir.close().unwrap();
+
     // Tray
     let mut indicator = libappindicator::AppIndicator::new("DDC Control Tray", "");
     indicator.set_status(libappindicator::AppIndicatorStatus::Active);
-
-    let icon_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("res");
-    indicator.set_icon_theme_path(icon_path.to_str().unwrap());
+    indicator.set_icon_theme_path(temp_dir.path().to_str().unwrap());
     indicator.set_icon_full("icon", "icon");
 
     // Build tray menu
