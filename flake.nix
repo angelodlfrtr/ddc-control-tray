@@ -1,65 +1,81 @@
 {
   inputs = {
-    flake-utils.url = "github:numtide/flake-utils";
-    naersk.url = "github:nix-community/naersk";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    crane.url = "github:ipetkov/crane";
   };
 
-  outputs = {
-    self,
-    flake-utils,
-    naersk,
-    nixpkgs,
-  }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      crane,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (
-      system: let
-        pkgs = (import nixpkgs) {
-          inherit system;
-        };
+      system:
+      let
+        pkgs = import nixpkgs { inherit system; };
+        craneLib = crane.mkLib pkgs;
+        cargoMetas = (builtins.fromTOML (builtins.readFile (self + "/Cargo.toml")));
+        version = cargoMetas.package.version;
+        pname = cargoMetas.package.name;
 
-        naersk' = pkgs.callPackage naersk {};
-      in rec {
-        # For `nix build` & `nix run`:
-        defaultPackage = naersk'.buildPackage {
+        commonArgs = {
+          strictDeps = true;
           src = ./.;
 
           nativeBuildInputs = with pkgs; [
-            rustc
-            cargo
             pkg-config
-          ];
-
-          buildInputs = with pkgs; [
-            gtk3
-            systemd
-            libayatana-appindicator
             makeWrapper
           ];
 
-          postInstall = ''
-            wrapProgram $out/bin/ddc-control-tray --set LD_LIBRARY_PATH ${pkgs.libayatana-appindicator}/lib
-          '';
-        };
-
-        # For `nix develop` (optional, can be skipped):
-        devShell = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [
-            rustc
-            cargo
-            pkg-config
-          ];
-
           buildInputs = with pkgs; [
             gtk3
             systemd
             libayatana-appindicator
           ];
+        };
+
+        cargoArtifacts = craneLib.buildDepsOnly (
+          commonArgs
+          // {
+            inherit pname version;
+          }
+        );
+
+        package = craneLib.buildPackage (
+          commonArgs
+          // {
+            inherit
+              pname
+              version
+              cargoArtifacts
+              ;
+
+            postInstall = ''
+              wrapProgram $out/bin/ddc-control-tray --set LD_LIBRARY_PATH ${pkgs.libayatana-appindicator}/lib
+            '';
+          }
+        );
+      in
+      {
+        formatter = pkgs.nixfmt-rfc-style;
+
+        devShell = craneLib.devShell {
+          inputsFrom = [ package ];
+
+          packages = with pkgs; [
+            gnumake
+            rust-analyzer
+          ];
 
           LD_LIBRARY_PATH = "${pkgs.libayatana-appindicator}/lib";
-          shellHook = ''
-            LD_LIBRARY_PATH="${pkgs.libayatana-appindicator}/lib"
-          '';
         };
+
+        # Default package
+        packages.default = package;
       }
     );
 }
